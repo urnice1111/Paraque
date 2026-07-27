@@ -1,0 +1,13 @@
+{
+	"name": "WhatsApp Bot",
+	"main": "index.mjs",
+	"scripts": {
+		"start": "node index.mjs"
+	},
+	"type": "module",
+	"dependencies": {
+		"baileys": "7.0.0-rc13",
+		"pino": "^10.3.1",
+		"qrcode-terminal": "^0.12.0"
+	}
+}

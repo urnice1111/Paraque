@@ -1,0 +1,3 @@
+allowBuilds:
+  baileys: true
+  protobufjs: true

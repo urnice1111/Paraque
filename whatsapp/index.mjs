@@ -7,12 +7,20 @@ import makeWASocket, {
 import qrcode from 'qrcode-terminal'
 import P from 'pino'
 
-const logger = P({ level: 'debug' })
+import { writeMessage } from './database_handler.mjs'
+
+const logger = P({ level: 'silent' })
+
+import sqlite3 from 'sqlite3';
+const db = new sqlite3.Database('../data/dev.db');
 
 async function connect() {
   // creates ./auth_info if it doesn't exist; loads it if it does
   const { state, saveCreds } = await useMultiFileAuthState('auth_info')
   const { version } = await fetchLatestBaileysVersion()
+
+  const messages_bucket = {}
+  let currentBatch = 1;
 
   const sock = makeWASocket({
     version,
@@ -44,7 +52,8 @@ async function connect() {
     }
   })
 
-  sock.ev.on('messages.upsert', ({messages}) => {
+  sock.ev.on('messages.upsert', async ({messages}) => {
+    console.log("current batch: ", currentBatch)
     for (const msg of messages){
         if (!msg.message) continue
 
@@ -61,6 +70,35 @@ async function connect() {
             console.log('Category:', msg.category)
             console.log('From me:', msg.key.fromMe)
             console.log('--------------------------------')
+
+            const group = msg.key.remoteJid;
+
+            const msg_object = {
+              message_id : msg.key.id,
+              from_me : msg.key.fromMe,
+              time_stamp: msg.messageTimestamp,
+              message_content: text,
+            }
+
+            console.log(msg_object.message_id);
+
+            if (group in messages_bucket){
+              messages_bucket[group].push(msg_object);
+            } else {
+              messages_bucket[group] = [msg_object];
+            }
+
+            if (messages_bucket[group].length >= 5){
+              try {
+                for (const m of messages_bucket[group]){
+                  await writeMessage(db, m, currentBatch);
+                  messages_bucket[group] = [];
+                }
+                currentBatch++;
+              } catch (err){
+                console.error('Batch failed', err)
+              }
+            }
         }
     }
   })

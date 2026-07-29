@@ -7,7 +7,7 @@ import makeWASocket, {
 import qrcode from 'qrcode-terminal'
 import P from 'pino'
 
-import { writeMessage } from './database_handler.mjs'
+import { writeMessage, addContact } from './database_handler.mjs'
 
 const logger = P({ level: 'silent' })
 
@@ -61,11 +61,11 @@ async function connect() {
 
     
         if (text) {
-            // Convert unix timestamp into date
-            var date = new Date(msg.messageTimestamp * 1000)
+            // Convert unix timestamp into date, just for logs
+            // var date = new Date(msg.messageTimestamp * 1000)
 
             console.log('From:', msg.key.remoteJid)
-            console.log('When:', date)
+            //console.log('When:', date)
             console.log(`Text:`, text)
             console.log('Category:', msg.category)
             console.log('From me:', msg.key.fromMe)
@@ -75,9 +75,11 @@ async function connect() {
 
             const msg_object = {
               message_id : msg.key.id,
+              contact_id: msg.key.remoteJid,
               from_me : msg.key.fromMe,
               time_stamp: msg.messageTimestamp,
               message_content: text,
+              contact_name: msg.pushName
             }
 
             console.log(msg_object.message_id);
@@ -91,6 +93,7 @@ async function connect() {
             if (messages_bucket[group].length >= 5){
               try {
                 for (const m of messages_bucket[group]){
+                  await addContact(db, m.contact_id, m.contact_name)
                   await writeMessage(db, m, currentBatch);
                   messages_bucket[group] = [];
                 }
@@ -102,8 +105,6 @@ async function connect() {
         }
     }
   })
-
-
 
   return sock
 }
